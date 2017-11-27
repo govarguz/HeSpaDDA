@@ -6,7 +6,6 @@ Makefile
 COPYING
 INSTALL
 ESPRC
-espressopp
 src/acconfig.hpp
 src/gitversion.hpp
 build
