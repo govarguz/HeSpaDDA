@@ -98,8 +98,7 @@ namespace espressopp {
       /// init global Verlet list
       void initCellInteractions();
       /// set the grids and allocate space accordingly
-      void createCellGrid(const Int3D& nodeGrid, const Int3D& cellGrid, const boost::python::list& neiListx,
-                          const boost::python::list& neiListy, const boost::python::list& neiListz);
+      void createCellGrid(const Int3D& cellGrid);
       /// sort cells into local/ghost cell arrays
       void markCells();
       /// fill a list of cells with the cells from a certain region of the domain grid
