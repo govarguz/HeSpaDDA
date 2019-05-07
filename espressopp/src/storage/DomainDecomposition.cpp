@@ -83,24 +83,26 @@ namespace espressopp {
           << " Neighbor List size = "
           << boost::python::len(neiListx) << "x" << boost::python::len(neiListy) << "x" << boost::python::len(neiListz));
 
-    createCellGrid(_nodeGrid, _cellGrid, neiListx, neiListy, neiListz);
-    initCellInteractions();
-    prepareGhostCommunication();
-    LOG4ESPP_DEBUG(logger, "done");
-  }
-
-  void DomainDecomposition:: createCellGrid(const Int3D& _nodeGrid, const Int3D& _cellGrid,
-                                            const boost::python::list& neiListx,
-                                            const boost::python::list& neiListy,
-                                            const boost::python::list& neiListz)
-  {
-    real myLeft[3];
-    real myRight[3];
-
     nodeGrid = NodeGrid(_nodeGrid, getSystem()->comm->rank(), getSystem()->bc->getBoxL(), neiListx, neiListy, neiListz);
     if (nodeGrid.getNumberOfCells() != getSystem()->comm->size()) {
       throw NodeGridMismatch(_nodeGrid, getSystem()->comm->size());
     }
+    construct(_cellGrid);	 
+
+   LOG4ESPP_DEBUG(logger, "done");
+  }
+
+  void DomainDecomposition::construct(const Int3D& _cellGrid)
+  {
+    createCellGrid(_cellGrid);
+    initCellInteractions();
+    prepareGhostCommunication();
+  }
+
+  void DomainDecomposition:: createCellGrid(const Int3D& _cellGrid)
+  {
+    real myLeft[3];
+    real myRight[3];
 
     LOG4ESPP_INFO(logger, "my node grid position: "
           << nodeGrid.getNodePosition(0) << " "
