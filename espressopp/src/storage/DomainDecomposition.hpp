@@ -135,6 +135,10 @@ namespace espressopp {
       CommCells commCells[6];
 
       static LOG4ESPP_DECL_LOGGER(logger);
+
+    private:
+      void construct(const Int3D& _cellGrid);
+	
     };
   }
 }
