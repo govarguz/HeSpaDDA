@@ -29,6 +29,7 @@
 #include "NodeGrid.hpp"
 #include <vector>
 #include <boost/python.hpp>
+#include <memory>
 
 
 namespace espressopp {
@@ -44,6 +45,12 @@ namespace espressopp {
       DomainDecomposition(shared_ptr< System > system,
               const Int3D& _nodeGrid,
               const Int3D& _cellGrid,
+              const boost::python::list& neiListx,
+              const boost::python::list& neiListy,
+              const boost::python::list& neiListz);
+
+      DomainDecomposition(shared_ptr< System > system,
+              const Int3D& _nodeGrid,
               const boost::python::list& neiListx,
               const boost::python::list& neiListy,
               const boost::python::list& neiListz);

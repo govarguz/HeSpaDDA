@@ -1,4 +1,4 @@
-#  Copyright (C) 2012,2013,2017(H)
+#  Copyright (C) 2012,2013,2017, 2019(H)
 #      Max Planck Institute for Polymer Research
 #  Copyright (C) 2008,2009,2010,2011
 #      Max-Planck-Institute for Polymer Research & Fraunhofer SCAI
@@ -60,15 +60,15 @@ from espressopp.storage.Storage import *
 
 class DomainDecompositionLocal(StorageLocal, storage_DomainDecomposition):
     'The (local) DomainDecomposition.'
-    def __init__(self, system, nodeGrid, cellGrid,neiListx,neiListy,neiListz):
+    def __init__(self, system, nodeGrid,neiListx,neiListy,neiListz):
         if not (pmi._PMIComm and pmi._PMIComm.isActive()) or pmi._MPIcomm.rank in pmi._PMIComm.getMPIcpugroup():
             p1 = pmi._MPIcomm.rank % nodeGrid[0]
             aux1 =pmi._MPIcomm.rank/nodeGrid[0]  # HeSpaDDA comment: Refers to the order in which processors are given within the Linked-Cell-List
             p2 = aux1 % nodeGrid[1]
             aux2 = aux1/nodeGrid[1]
             p3 = aux2  # HeSpaDDA comment: The processors triplet (p1,p2,p3) have been extracted and are ready for the construction of the cells neighbor list
-            cellGrid = Int3D(neiListx[p1+1]-neiListx[p1],neiListy[p2+1]-neiListy[p2],neiListz[p3+1]-neiListz[p3])
-            cxxinit(self, storage_DomainDecomposition, system, nodeGrid, cellGrid, neiListx, neiListy, neiListz)
+            #cellGrid = Int3D(neiListx[p1+1]-neiListx[p1],neiListy[p2+1]-neiListy[p2],neiListz[p3+1]-neiListz[p3])
+            cxxinit(self, storage_DomainDecomposition, system, nodeGrid, neiListx, neiListy, neiListz)
     def getCellGrid(self):
         if not (pmi._PMIComm and pmi._PMIComm.isActive()) or pmi._MPIcomm.rank in pmi._PMIComm.getMPIcpugroup():
             return self.cxxclass.getCellGrid(self)
@@ -92,7 +92,7 @@ if pmi.isController:
             # do sanity checks for the system first
             if nocheck:
               self.next_id = 0
-              self.pmiinit(system, nodeGrid, cellGrid, neiListx, neiListy, neiListz) # H check
+              self.pmiinit(system, nodeGrid, neiListx, neiListy, neiListz) # H check
             else:
               if check.System(system, 'bc'):
                 if nodeGrid == 'auto':
@@ -122,6 +122,6 @@ if pmi.isController:
                              "adjusted to 2 (was={})".format(k, cellGrid[k])))
                     cellGrid[k] = 2
                 self.next_id = 0
-                self.pmiinit(system, nodeGrid, cellGrid, neiListx, neiListy, neiListz)
+                self.pmiinit(system, nodeGrid, neiListx, neiListy, neiListz)
               else:
                 print 'Error: could not create DomainDecomposition object'

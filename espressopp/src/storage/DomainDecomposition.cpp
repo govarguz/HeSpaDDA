@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2012,2013,2017(H)
+  Copyright (C) 2012,2013,2017,2019(H)
       Max Planck Institute for Polymer Research    
   Copyright (C) 2008,2009,2010,2011
       Max-Planck-Institute for Polymer Research & Fraunhofer SCAI
@@ -23,6 +23,7 @@
 
 #include "python.hpp"
 
+#include <memory>
 #include <algorithm>
 #include <cmath>
 #include <sstream>
@@ -91,8 +92,52 @@ namespace espressopp {
 
    LOG4ESPP_DEBUG(logger, "done");
   }
+//Hache(S)
+  DomainDecomposition::
+  DomainDecomposition(shared_ptr< System > _system,
+          const Int3D& _nodeGrid,
+          const boost::python::list& neiListx,
+          const boost::python::list& neiListy,
+          const boost::python::list& neiListz)
+    : Storage(_system), exchangeBufferSize(0) {
+    LOG4ESPP_INFO(logger, "node grid = "
+          << _nodeGrid[0] << "x" << _nodeGrid[1] << "x" << _nodeGrid[2]
+          << " cell grid = "
+          //<< cellGrid[0] << "x" << cellGrid[1] << "x" << cellGrid[2]
+          << " Neighbor List size = "
+          << boost::python::len(neiListx) << "x" << boost::python::len(neiListy) << "x" << boost::python::len(neiListz));
 
-  void DomainDecomposition::construct(const Int3D& _cellGrid)
+    nodeGrid = NodeGrid(_nodeGrid, getSystem()->comm->rank(), getSystem()->bc->getBoxL(), neiListx, neiListy, neiListz);
+    if (nodeGrid.getNumberOfCells() != getSystem()->comm->size()) {
+      throw NodeGridMismatch(_nodeGrid, getSystem()->comm->size());
+    }
+    //std::vector<int> array;
+    //std::vector<int>(boost::python::stl_input_iterator<int>(neiListx),boost::python::stl_input_iterator<int>());
+    //std::vector<int>(boost::python::stl_input_iterator<int>(neiListy),boost::python::stl_input_iterator<int>());
+    //std::vector<int>(boost::python::stl_input_iterator<int>(neiListz),boost::python::stl_input_iterator<int>());    
+
+    Int3D cellGrid(std::vector<int>(boost::python::stl_input_iterator<int>(neiListx),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(0) + 1]-std::vector<int>(boost::python::stl_input_iterator<int>(neiListx),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(0)],std::vector<int>(boost::python::stl_input_iterator<int>(neiListy),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(1) + 1]-std::vector<int>(boost::python::stl_input_iterator<int>(neiListy),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(1)],std::vector<int>(boost::python::stl_input_iterator<int>(neiListz),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(2) + 1]-std::vector<int>(boost::python::stl_input_iterator<int>(neiListz),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(2)]);   
+
+                   //neiListVx[nodeGrid.getNodePosition(0) + 1] - neiListVx[nodeGrid.getNodePosition(0)],
+                   //neiListVy[nodeGrid.getNodePosition(1) + 1] - neiListVy[nodeGrid.getNodePosition(1)],
+                   //neiListVz[nodeGrid.getNodePosition(2) + 1] - neiListVz[nodeGrid.getNodePosition(2)]);
+
+    construct(cellGrid);	 
+
+   LOG4ESPP_DEBUG(logger, "done");
+  }
+
+/*
+    : DomainDecomposition(_system, _nodeGrid,
+                          std::vector<int>(boost::python::stl_input_iterator<int>(neiListx),boost::python::stl_input_iterator<int>()),
+                          std::vector<int>(boost::python::stl_input_iterator<int>(neiListy),boost::python::stl_input_iterator<int>()),
+                          std::vector<int>(boost::python::stl_input_iterator<int>(neiListz),boost::python::stl_input_iterator<int>()))
+  {
+  }
+*/
+//Hache(E)
+
+  void DomainDecomposition::construct(const Int3D &_cellGrid)
   {
     createCellGrid(_cellGrid);
     initCellInteractions();
@@ -155,6 +200,7 @@ namespace espressopp {
   void DomainDecomposition::markCells() {
     realCells.resize(0);
     ghostCells.resize(0);
+    //realBoundaryCells.resize(0);
 
     for (int o = 0; o < cellGrid.getFrameGridSize(2); ++o) {
       for (int n = 0; n < cellGrid.getFrameGridSize(1); ++n) {
@@ -797,7 +843,9 @@ where different cell sizes can be dynamically arranged. For details (horacio.v.g
   void DomainDecomposition::registerPython() {
     using namespace espressopp::python;
     class_< DomainDecomposition, bases< Storage >, boost::noncopyable >
-    ("storage_DomainDecomposition", init< shared_ptr< System >, const Int3D&, const Int3D&, const boost::python::list& ,const boost::python::list&, const boost::python::list& >())
+    ("storage_DomainDecomposition", init< shared_ptr< System >, 
+	// const Int3D&, 
+	const Int3D&, const boost::python::list& ,const boost::python::list&, const boost::python::list& >())
     .def("mapPositionToNodeClipped", &DomainDecomposition::mapPositionToNodeClipped)
     .def("getCellGrid", &DomainDecomposition::getInt3DCellGrid)
     .def("getNodeGrid", &DomainDecomposition::getInt3DNodeGrid)
