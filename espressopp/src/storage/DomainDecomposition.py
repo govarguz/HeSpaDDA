@@ -1,4 +1,4 @@
-#  Copyright (C) 2012,2013,2017, 2019(H)
+#  Copyright (C) 2012,2013,2017,2019(H)
 #      Max Planck Institute for Polymer Research
 #  Copyright (C) 2008,2009,2010,2011
 #      Max-Planck-Institute for Polymer Research & Fraunhofer SCAI
@@ -80,11 +80,10 @@ if pmi.isController:
     class DomainDecomposition(Storage):
         pmiproxydefs = dict(
           cls = 'espressopp.storage.DomainDecompositionLocal',  
-          pmicall = ['getCellGrid', 'getNodeGrid', 'cellAdjust']
+          pmicall = ['getCellGrid', 'getNodeGrid', 'cellAdjust','callALL']
         )
         def __init__(self, system,
                      nodeGrid='auto',
-                     cellGrid='auto',
                      neiListx='auto',
                      neiListy='auto',
                      neiListz='auto',
@@ -99,10 +98,10 @@ if pmi.isController:
                   nodeGrid = decomp.nodeGrid(system.comm.rank)
                 else:
                   nodeGrid = toInt3DFromVector(nodeGrid)
-                if cellGrid == 'auto':
-                  cellGrid = Int3D(2,2,2)
-                else:
-                  cellGrid = cellGrid
+                #if cellGrid == 'auto':
+                #  cellGrid = Int3D(2,2,2)
+                #else:
+                #  cellGrid = cellGrid
                 if neiListx == 'auto':
                   neiListx = neiListx
                 else:
@@ -116,11 +115,6 @@ if pmi.isController:
                 else:
                   neiListz = neiListz
                 # minimum image convention check:
-                for k in range(3):
-                  if nodeGrid[k]*cellGrid[k]== 1 :
-                    print(("Warning! cellGrid[{}] has been "
-                             "adjusted to 2 (was={})".format(k, cellGrid[k])))
-                    cellGrid[k] = 2
                 self.next_id = 0
                 self.pmiinit(system, nodeGrid, neiListx, neiListy, neiListz)
               else:

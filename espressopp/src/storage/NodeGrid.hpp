@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2012,2013,2017(H)
+  Copyright (C) 2012,2013,2017,2019(H)
       Max Planck Institute for Polymer Research
   Copyright (C) 2008,2009,2010,2011
       Max-Planck-Institute for Polymer Research & Fraunhofer SCAI
@@ -72,6 +72,13 @@ namespace espressopp {
                const boost::python::list& _neiListx,
                const boost::python::list& _neiListy,
                const boost::python::list& _neiListz);
+      // Hache~  
+      NodeGrid(const Int3D& grid,
+               const longint nodeId,
+               const Real3D& domainSize,
+               const std::vector<int>& _neiListx,
+               const std::vector<int>& _neiListy,
+               const std::vector<int>& _neiListz);
 
       /// map coordinate to a node. Positions outside are clipped back
       longint 
@@ -79,6 +86,8 @@ namespace espressopp {
 
       /// get this node's coordinates
       longint getNodePosition(int axis) const { return nodePos[axis]; }
+      /// get this node's coordinates Hcomment: NEW
+      Int3D getNodePosition() const { return nodePos; }
       /// size of the local box
       real getLocalBoxSize(int axis) const { return localBoxSize[axis]; }
       /// inverse of the size of a cell
@@ -86,27 +95,22 @@ namespace espressopp {
 
       /// calculate start of local box
       real getMyLeft(int axis) const {
-          if (axis==0){
-             return static_cast<real>((neiListx[localNodePos[0]]))*(localBoxSize[0]/(static_cast<real>((neiListx[localNodePos[0]+1])-(neiListx[localNodePos[0]]))/static_cast<real>(maxDomainSizeInCells[0])))/static_cast<real>(maxDomainSizeInCells[axis]);}
-          else if (axis==1){
-             return static_cast<real>((neiListy[localNodePos[1]]))*(localBoxSize[1]/(static_cast<real>((neiListy[localNodePos[1]+1])-(neiListy[localNodePos[1]]))/static_cast<real>(maxDomainSizeInCells[1])))/static_cast<real>(maxDomainSizeInCells[axis]);}
-          else {
-             return static_cast<real>((neiListz[localNodePos[2]]))*(localBoxSize[2]/(static_cast<real>((neiListz[localNodePos[2]+1])-(neiListy[localNodePos[2]]))/static_cast<real>(maxDomainSizeInCells[2])))/static_cast<real>(maxDomainSizeInCells[axis]);}
+          std::vector<std::vector<int> > neiList = {neiListx, neiListy, neiListz};
+             real num_local_cells = static_cast<real>(neiList[axis][localNodePos[axis]+1] - neiList[axis][localNodePos[axis]]);
+             return static_cast<real>(neiList[axis][localNodePos[axis]]) * localBoxSize[axis] / num_local_cells;
           }
+
       Real3D getMyLeft() const { 
         return Real3D(getMyLeft(0), getMyLeft(1), getMyLeft(2));
       }
 
       /// calculate end of local box
       real getMyRight(int axis) const {
-
-          if (axis==0){
-            return static_cast<real>((neiListx[localNodePos[0]+1]))*(localBoxSize[0]/(static_cast<real>((neiListx[localNodePos[0]+1])-(neiListx[localNodePos[0]]))/static_cast<real>(maxDomainSizeInCells[0])))/static_cast<real>(maxDomainSizeInCells[axis]);}
-          else if (axis==1){
-            return static_cast<real>((neiListy[localNodePos[1]+1]))*(localBoxSize[1]/(static_cast<real>((neiListy[localNodePos[1]+1])-(neiListy[localNodePos[1]]))/static_cast<real>(maxDomainSizeInCells[1])))/static_cast<real>(maxDomainSizeInCells[axis]);}
-          else {
-            return static_cast<real>((neiListz[localNodePos[2]+1]))*(localBoxSize[2]/(static_cast<real>((neiListz[localNodePos[2]+1])-(neiListz[localNodePos[2]]))/static_cast<real>(maxDomainSizeInCells[2])))/static_cast<real>(maxDomainSizeInCells[axis]);}
+          std::vector<std::vector<int> > neiList = {neiListx, neiListy, neiListz};
+             real num_local_cells = static_cast<real>(neiList[axis][localNodePos[axis]+1] - neiList[axis][localNodePos[axis]]);
+             return static_cast<real>(neiList[axis][localNodePos[axis] + 1]) * localBoxSize[axis] / num_local_cells;
       }
+
       Real3D getMyRight() const { 
         return Real3D(getMyRight(0), getMyRight(1), getMyRight(2));
       }
@@ -165,6 +169,10 @@ namespace espressopp {
       }
       
     private:
+      // init is called from the Constructors and sets maxdomainSizes, local and inverse box sizes as well.
+	       
+      void init(const longint nodeId, const Real3D &domainSize);
+
       void calcNodeNeighbors(longint node);
 
       /// position of this node in node grid

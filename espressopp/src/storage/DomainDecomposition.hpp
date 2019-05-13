@@ -51,9 +51,29 @@ namespace espressopp {
 
       DomainDecomposition(shared_ptr< System > system,
               const Int3D& _nodeGrid,
+              const Int3D& _cellGrid,
+              const std::vector<int>& neiListx,
+              const std::vector<int>& neiListy,
+              const std::vector<int>& neiListz);
+
+      DomainDecomposition(shared_ptr< System > system,
+              const Int3D& _nodeGrid,
+              const std::vector<int>& neiListx,
+              const std::vector<int>& neiListy,
+              const std::vector<int>& neiListz);
+//Not sure if to identical will do it
+      DomainDecomposition(shared_ptr< System > system, 
+              const Int3D& _nodeGrid,
               const boost::python::list& neiListx,
               const boost::python::list& neiListy,
               const boost::python::list& neiListz);
+
+/*      DomainDecomposition(shared_ptr< System > system,
+              const Int3D& _nodeGrid,
+              const boost::python::list& neiListx,
+              const boost::python::list& neiListy,
+              const boost::python::list& neiListz);
+*/
 
       virtual ~DomainDecomposition() {}
 
@@ -68,6 +88,14 @@ namespace espressopp {
       // it modifies the cell structure if the cell size becomes smaller then cutoff+skin
       // as a consequence of the system resizing
       virtual void cellAdjust();
+      virtual void callALL(const boost::python::list& neiListx,
+              const boost::python::list& neiListy,
+              const boost::python::list& neiListz);
+
+
+//const std::vector<int>& neiListx,
+//              		   const std::vector<int>& neiListy,
+//	                   const std::vector<int>& neiListz);
 
       virtual Cell *mapPositionToCell(const Real3D& pos);
       virtual Cell *mapPositionToCellClipped(const Real3D& pos);
@@ -91,11 +119,12 @@ namespace espressopp {
 
       static void registerPython();
 
-    protected:
+    public:
       virtual bool checkIsRealParticle(longint id, const Real3D& pos);
       virtual void decomposeRealParticles();
       virtual void exchangeGhosts();
 
+    protected:
       virtual void doGhostCommunication(bool sizesFirst,
 				bool realToGhosts,
 				const int dataElements = 0);

@@ -23,7 +23,12 @@
 
 #include "python.hpp"
 
+#include <iostream>
+#include <iomanip>
+#include <cmath>
+#include <limits>
 #include <memory>
+
 #include <algorithm>
 #include <cmath>
 #include <sstream>
@@ -42,6 +47,8 @@
 #include "boost/serialization/vector.hpp"
 #include <vector>
 #include <boost/python.hpp>
+
+
 
 
 using namespace boost;
@@ -92,7 +99,74 @@ namespace espressopp {
 
    LOG4ESPP_DEBUG(logger, "done");
   }
+//errr
+  DomainDecomposition::
+  DomainDecomposition(shared_ptr< System > _system,
+          const Int3D& _nodeGrid,
+          const Int3D& _cellGrid,
+          const std::vector<int>& neiListx,
+          const std::vector<int>& neiListy,
+          const std::vector<int>& neiListz)
+    : Storage(_system), exchangeBufferSize(0) {
+    LOG4ESPP_INFO(logger, "node grid = "
+          << _nodeGrid[0] << "x" << _nodeGrid[1] << "x" << _nodeGrid[2]
+          << " cell grid = "
+          << _cellGrid[0] << "x" << _cellGrid[1] << "x" << _cellGrid[2]
+          << " Neighbor List size = "
+          << neiListx.size() << "x" << neiListy.size() << "x" << neiListz.size());
+
+    nodeGrid = NodeGrid(_nodeGrid, getSystem()->comm->rank(), getSystem()->bc->getBoxL(), neiListx, neiListy, neiListz);
+    if (nodeGrid.getNumberOfCells() != getSystem()->comm->size()) {
+      throw NodeGridMismatch(_nodeGrid, getSystem()->comm->size());
+    }
+    construct(_cellGrid);
+    LOG4ESPP_DEBUG(logger, "done");
+  }
+
+  DomainDecomposition::
+  DomainDecomposition(shared_ptr< System > _system,
+          const Int3D& _nodeGrid,
+          const std::vector<int>& neiListx,
+          const std::vector<int>& neiListy,
+          const std::vector<int>& neiListz)
+    : Storage(_system), exchangeBufferSize(0){
+    nodeGrid = NodeGrid(_nodeGrid, getSystem()->comm->rank(), getSystem()->bc->getBoxL(), neiListx, neiListy, neiListz);
+    if (nodeGrid.getNumberOfCells() != getSystem()->comm->size()) {
+      throw NodeGridMismatch(_nodeGrid, getSystem()->comm->size());
+    }
+
+    Int3D cellGrid(neiListx[nodeGrid.getNodePosition(0) + 1] - neiListx[nodeGrid.getNodePosition(0)],
+                   neiListy[nodeGrid.getNodePosition(1) + 1] - neiListy[nodeGrid.getNodePosition(1)],
+                   neiListz[nodeGrid.getNodePosition(2) + 1] - neiListz[nodeGrid.getNodePosition(2)]);
+
+    LOG4ESPP_INFO(logger, "node grid = "
+          << _nodeGrid[0] << "x" << _nodeGrid[1] << "x" << _nodeGrid[2]
+          << " cell grid = "
+          << cellGrid[0] << "x" << cellGrid[1] << "x" << cellGrid[2]
+          << " Neighbor List size = "
+          << neiListx.size() << "x" << neiListy.size() << "x" << neiListz.size());
+
+    construct(cellGrid);
+    LOG4ESPP_DEBUG(logger, "done");
+  }
+/*
+  DomainDecomposition::
+  DomainDecomposition(shared_ptr< System > _system,
+          const Int3D& _nodeGrid,
+          const boost::python::list& neiListx,
+          const boost::python::list& neiListy,
+          const boost::python::list& neiListz)
+    : DomainDecomposition(_system, _nodeGrid,
+                          std::vector<int>(boost::python::stl_input_iterator<int>(neiListx),boost::python::stl_input_iterator<int>()),
+                          std::vector<int>(boost::python::stl_input_iterator<int>(neiListy),boost::python::stl_input_iterator<int>()),
+                          std::vector<int>(boost::python::stl_input_iterator<int>(neiListz),boost::python::stl_input_iterator<int>()))
+  {
+  }
+
+*/
 //Hache(S)
+
+
   DomainDecomposition::
   DomainDecomposition(shared_ptr< System > _system,
           const Int3D& _nodeGrid,
@@ -100,41 +174,31 @@ namespace espressopp {
           const boost::python::list& neiListy,
           const boost::python::list& neiListz)
     : Storage(_system), exchangeBufferSize(0) {
-    LOG4ESPP_INFO(logger, "node grid = "
-          << _nodeGrid[0] << "x" << _nodeGrid[1] << "x" << _nodeGrid[2]
-          << " cell grid = "
-          //<< cellGrid[0] << "x" << cellGrid[1] << "x" << cellGrid[2]
-          << " Neighbor List size = "
-          << boost::python::len(neiListx) << "x" << boost::python::len(neiListy) << "x" << boost::python::len(neiListz));
 
     nodeGrid = NodeGrid(_nodeGrid, getSystem()->comm->rank(), getSystem()->bc->getBoxL(), neiListx, neiListy, neiListz);
     if (nodeGrid.getNumberOfCells() != getSystem()->comm->size()) {
       throw NodeGridMismatch(_nodeGrid, getSystem()->comm->size());
     }
-    //std::vector<int> array;
-    //std::vector<int>(boost::python::stl_input_iterator<int>(neiListx),boost::python::stl_input_iterator<int>());
-    //std::vector<int>(boost::python::stl_input_iterator<int>(neiListy),boost::python::stl_input_iterator<int>());
-    //std::vector<int>(boost::python::stl_input_iterator<int>(neiListz),boost::python::stl_input_iterator<int>());    
 
     Int3D cellGrid(std::vector<int>(boost::python::stl_input_iterator<int>(neiListx),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(0) + 1]-std::vector<int>(boost::python::stl_input_iterator<int>(neiListx),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(0)],std::vector<int>(boost::python::stl_input_iterator<int>(neiListy),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(1) + 1]-std::vector<int>(boost::python::stl_input_iterator<int>(neiListy),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(1)],std::vector<int>(boost::python::stl_input_iterator<int>(neiListz),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(2) + 1]-std::vector<int>(boost::python::stl_input_iterator<int>(neiListz),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(2)]);   
-
+		   // H~ Using vectors is a different story	
                    //neiListVx[nodeGrid.getNodePosition(0) + 1] - neiListVx[nodeGrid.getNodePosition(0)],
                    //neiListVy[nodeGrid.getNodePosition(1) + 1] - neiListVy[nodeGrid.getNodePosition(1)],
                    //neiListVz[nodeGrid.getNodePosition(2) + 1] - neiListVz[nodeGrid.getNodePosition(2)]);
+    LOG4ESPP_INFO(logger, "node grid = "
+          << _nodeGrid[0] << "x" << _nodeGrid[1] << "x" << _nodeGrid[2]
+          << " cell grid = "
+          << cellGrid[0] << "x" << cellGrid[1] << "x" << cellGrid[2]
+          << " Neighbor List size = "
+          << boost::python::len(neiListx) << "x" << boost::python::len(neiListy) << "x" << boost::python::len(neiListz));
 
     construct(cellGrid);	 
 
    LOG4ESPP_DEBUG(logger, "done");
   }
 
-/*
-    : DomainDecomposition(_system, _nodeGrid,
-                          std::vector<int>(boost::python::stl_input_iterator<int>(neiListx),boost::python::stl_input_iterator<int>()),
-                          std::vector<int>(boost::python::stl_input_iterator<int>(neiListy),boost::python::stl_input_iterator<int>()),
-                          std::vector<int>(boost::python::stl_input_iterator<int>(neiListz),boost::python::stl_input_iterator<int>()))
-  {
-  }
-*/
+
+
 //Hache(E)
 
   void DomainDecomposition::construct(const Int3D &_cellGrid)
@@ -292,6 +356,111 @@ where different cell sizes can be dynamically arranged. For details (horacio.v.g
                 );
   }
 
+
+  void DomainDecomposition::callALL(const boost::python::list& neiListx,
+          			    const boost::python::list& neiListy,
+			            const boost::python::list& neiListz){
+  //void DomainDecomposition::callALL(const std::vector<int>& neiListx,
+  //				    const std::vector<int>& neiListy,
+  //			            const std::vector<int>& neiListz)
+  //{    
+    //~ Obtain neiListOldX, neiListOldY, neiListOldZ
+    Int3D intWall(0,0,0);
+    Real3D realWall(0.0,0.0,0.0);
+
+    real skinL = getSystem() -> getSkin();
+    real maxCutoffL = getSystem() -> maxCutoff;  
+    real rc_skin = maxCutoffL + skinL;
+
+    // nodeGrid is already defined
+    Int3D _nodeGrid(nodeGrid.getGridSize());
+	
+    // get nodePos locally
+    Int3D nodePos = nodeGrid.getNodePosition();
+
+    Int3D cellGridOld(std::vector<int>(boost::python::stl_input_iterator<int>(neiListx),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(0) + 1]-std::vector<int>(boost::python::stl_input_iterator<int>(neiListx),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(0)],std::vector<int>(boost::python::stl_input_iterator<int>(neiListy),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(1) + 1]-std::vector<int>(boost::python::stl_input_iterator<int>(neiListy),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(1)],std::vector<int>(boost::python::stl_input_iterator<int>(neiListz),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(2) + 1]-std::vector<int>(boost::python::stl_input_iterator<int>(neiListz),boost::python::stl_input_iterator<int>())[nodeGrid.getNodePosition(2)]);   
+
+     std::cout << "cellGridOld " << cellGridOld << std::endl;
+
+    //Int3D _nodeGrid(nodeGrid.getGridSize());
+    //// given for each processor
+    /*Int3D cellGridOld((neiListx[nodePos[0]+ 1] - neiListx[nodePos[0]]),  
+                      (neiListy[nodePos[1]+ 1] - neiListy[nodePos[1]]),
+                      (neiListz[nodePos[2]+ 1] - neiListz[nodePos[2]]));
+    */       
+
+    
+    // new cellGrid to be obtained from ALL
+
+    ////~ realWall=callingALL(neiListx,neiListy,neiListz,getParticlesPernode());
+    realWall=(10.5,14.1,16.5); 	    
+
+    for (int i = 0; i < 3; ++i) {
+      if (realWall[i]>(intWall[i]+0.5)*(rc_skin)){
+      intWall[i]=intWall[i]+1;
+      }
+      if ((realWall[i]+0.5*(rc_skin))<((intWall[i])*(rc_skin))){
+      intWall[i]=intWall[i]-1;
+      }	
+      else
+      intWall[i]=intWall[i];
+    }
+
+    Int3D _newCellGrid(5,10,10); //intWall[0], intWall[1], intWall[2]); // Hardcoded ALL shall do!
+
+     std::cout << "cellGridNew " << _newCellGrid << std::endl;
+    // save all particles to temporary vector
+    std::vector<ParticleList> tmp_pl;
+    size_t _N = realCells.size();
+    tmp_pl.reserve( _N );
+    for(CellList::Iterator it(realCells); it.isValid(); ++it) {
+      tmp_pl.push_back((*it)->particles);
+    }
+    // reset all cells info
+    invalidateGhosts();
+    cells.clear();
+    localCells.clear();
+    realCells.clear();
+    ghostCells.clear();
+    for(int i=0; i<6; i++){
+      commCells[i].reals.clear();
+      commCells[i].ghosts.clear();
+    }
+    
+    // creating new grids
+    /*	
+    nodeGrid = NodeGrid(_nodeGrid, getSystem()->comm->rank(), getSystem()->bc->getBoxL(), neiListx, neiListy, neiListz);
+    if (nodeGrid.getNumberOfCells() != getSystem()->comm->size()) {
+      throw NodeGridMismatch(_nodeGrid, getSystem()->comm->size());
+    }
+    
+    construct(cellGrid)  
+    */
+    createCellGrid(_newCellGrid); //KEY
+    initCellInteractions();
+    prepareGhostCommunication();
+    
+    // pushing the particles back to the empty cell ("do we have to check particles?")
+    for(int i=0; i<tmp_pl.size(); i++){
+      for (size_t p = 0; p < tmp_pl[i].size(); ++p) {
+        Particle& part = tmp_pl[i][p];
+        const Real3D& pos = part.position();
+        Cell *sortCell = mapPositionToCellClipped(pos);
+        appendUnindexedParticle(sortCell->particles, part);
+      }
+    }
+
+    for(CellList::Iterator it(realCells); it.isValid(); ++it) {
+      updateLocalParticles((*it)->particles);
+    }
+    
+    exchangeGhosts();
+    onParticlesChanged();
+    // ~H
+    std::cout << "NODE GRID INIT, id " << getSystem()->comm->rank() << ", localBoxSize " << "localBoxSize" << ", LEFT: " << nodeGrid.getMyLeft() << ", RIGHT " << nodeGrid.getMyRight() <<  ", maxdomainsizeincells " << std::endl;//<< maxDomainSizeInCells[0] << " " << maxDomainSizeInCells[1] << " " << maxDomainSizeInCells[2] << std::endl;
+
+  }
+
   void DomainDecomposition::cellAdjust(){   
     /* // create an appropriate cell grid
     Real3D box_sizeL = getSystem() -> bc -> getBoxL();
@@ -300,7 +469,7 @@ where different cell sizes can be dynamically arranged. For details (horacio.v.g
             
     // nodeGrid is already defined
     Int3D _nodeGrid(nodeGrid.getGridSize());
-    // new cellGrid
+    // new cellGrid	
     real rc_skin = maxCutoffL + skinL;
     int ix = (int)(box_sizeL[0] / (rc_skin * _nodeGrid[0]));
     int iy = (int)(box_sizeL[1] / (rc_skin * _nodeGrid[1]));
@@ -843,13 +1012,12 @@ where different cell sizes can be dynamically arranged. For details (horacio.v.g
   void DomainDecomposition::registerPython() {
     using namespace espressopp::python;
     class_< DomainDecomposition, bases< Storage >, boost::noncopyable >
-    ("storage_DomainDecomposition", init< shared_ptr< System >, 
-	// const Int3D&, 
-	const Int3D&, const boost::python::list& ,const boost::python::list&, const boost::python::list& >())
+    ("storage_DomainDecomposition", init< shared_ptr< System >, const Int3D&, const boost::python::list& ,const boost::python::list&, const boost::python::list& >())
     .def("mapPositionToNodeClipped", &DomainDecomposition::mapPositionToNodeClipped)
     .def("getCellGrid", &DomainDecomposition::getInt3DCellGrid)
     .def("getNodeGrid", &DomainDecomposition::getInt3DNodeGrid)
     .def("cellAdjust", &DomainDecomposition::cellAdjust)
+    .def("callALL", &DomainDecomposition::callALL)
     ;
   }
 

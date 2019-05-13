@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2012,2013,2017(H)
+  Copyright (C) 2012,2013,2017,2019(H)
       Max Planck Institute for Polymer Research
   Copyright (C) 2008,2009,2010,2011
       Max-Planck-Institute for Polymer Research & Fraunhofer SCAI
@@ -56,10 +56,77 @@ namespace espressopp {
       for (int i = 0; i < boost::python::len(_neiListz); ++i) {
         neiListz.push_back(boost::python::extract<int>(_neiListz[i]));
       }
+
+      init(nodeId, domainSize);
+    }
+
+  NodeGrid::
+    NodeGrid(const Int3D& grid,
+         const longint nodeId,
+         const Real3D& domainSize,
+         const std::vector<int>& _neiListx,
+         const std::vector<int>& _neiListy,
+         const std::vector<int>& _neiListz)
+      : Grid(grid)
+    {
+      if (grid[0] <= 0 || grid[1] <= 0 || grid[2] <= 0) {
+        throw NodeGridIllegal();
+      }
+      // ################################   H   ############################################
+      // Domain size static changes individual Neighbor Lists X, Y and Z
+      // ###################################################################################
+      neiListx = _neiListx;
+      neiListy = _neiListy;
+      neiListz = _neiListz;
+
+      init(nodeId, domainSize);
+    }
+
+
+    // ################################   H   ############################################
+    // Check for Changes!!!   mapPositionToNodeClipped
+    // ###################################################################################
+    longint NodeGrid::
+    mapPositionToNodeClipped(const Real3D& pos) const
+    {
+      Int3D cpos, npos;
+      real kCellGridSize[3];
+      //kCellGridSize=localBoxSize[0]/(static_cast<real>((neiListx[localNodePos[0]+1])-(neiListx[localNodePos[0]]))/static_cast<real>(maxDomainSizeInCells[0]))/static_cast<real>(maxDomainSizeInCells[0]);
+      
+      std::vector<std::vector<int> > neiList = {neiListx, neiListy, neiListz};
+
+      for (int dir = 0; dir < 3; ++dir) {
+          kCellGridSize[dir]=localBoxSize[dir]/(static_cast<real>(neiList[dir][localNodePos[dir]+1])-(neiList[dir][localNodePos[dir]]));
+          cpos[dir] = static_cast< int >(pos[dir]/kCellGridSize[dir]);
+        if (cpos[dir] <= 0) {
+          npos[dir] = 0;
+        }
+        //else if (cpos[dir] >= getGridSize(dir)) {
+        else if (cpos[dir] >= maxDomainSizeInCells[dir]) {
+          npos[dir] = getGridSize(dir) - 1;
+        }
+        else {
+          for (int j=0;j<neiList[dir].size(); ++j) {
+            if (cpos[dir]>=(neiList[dir][j]) && cpos[dir]<(neiList[dir][j+1])) {
+                npos[dir]=j;
+            }
+          }
+        }
+      }
+
+//      std::cerr << "loc B size: " << localBoxSize << ", loc node pos: " << localNodePos << ", max domain size in cells: " 
+//          << maxDomainSizeInCells[0] << ", " <<maxDomainSizeInCells[1] << ", " <<  maxDomainSizeInCells[2] << ", kCellGridSize: " 
+//          << kCellGridSize[0] << ", " <<kCellGridSize[1] << ", " <<  kCellGridSize[2] << ", pos: " << pos << ", cpos: " << cpos << ", npos: " << npos << std::endl;
+      return mapPositionToIndex(npos);
+    }
+
+    void NodeGrid::init(const longint nodeId,
+                        const Real3D& domainSize)
+    {
+
     maxDomainSizeInCells[0]=neiListx[neiListx.size()-1];
     maxDomainSizeInCells[1]=neiListy[neiListy.size()-1];
     maxDomainSizeInCells[2]=neiListz[neiListz.size()-1];
-
 
     mapIndexToPosition(localNodePos, mpiWorld->rank());  // check this  |  mapIndexToPosition(nodePos, node);
     localBoxSize[0] = (static_cast<real>((neiListx[localNodePos[0]+1])-(neiListx[localNodePos[0]]))/static_cast<real>(maxDomainSizeInCells[0]))*domainSize[0];
@@ -71,60 +138,11 @@ namespace espressopp {
     localBoxSize[2] = (static_cast<real>((neiListz[localNodePos[2]+1])-(neiListz[localNodePos[2]]))/static_cast<real>(maxDomainSizeInCells[2]))*domainSize[2];
     invLocalBoxSize[2] = 1.0/localBoxSize[2];
 
-  smallestLocalBoxDiameter = std::min(std::min(localBoxSize[0], localBoxSize[1]), localBoxSize[2]);
+    smallestLocalBoxDiameter = std::min(std::min(localBoxSize[0], localBoxSize[1]), localBoxSize[2]);
+    // ~H
+    std::cout << "NODE GRID INIT, id " << nodeId << ", localBoxSize " << localBoxSize << ", LEFT: " << getMyLeft() << ", RIGHT " << getMyRight() <<  ", maxdomainsizeincells " << maxDomainSizeInCells[0] << " " << maxDomainSizeInCells[1] << " " << maxDomainSizeInCells[2] << std::endl;
 
   calcNodeNeighbors(nodeId);
-    }
-
-    longint NodeGrid::
-    mapPositionToNodeClipped(const Real3D& pos) const
-    {
-      Int3D cpos;
-      real kCellGridSize;
-      kCellGridSize=localBoxSize[0]/(static_cast<real>((neiListx[localNodePos[0]+1])-(neiListx[localNodePos[0]]))/static_cast<real>(maxDomainSizeInCells[0]))/static_cast<real>(maxDomainSizeInCells[0]);
-
-      for (int i = 0; i < 3; ++i) {
-          cpos[i] = static_cast< int >(pos[i]/kCellGridSize);
-        if (cpos[i] <= 0) {
-          cpos[i] = 0;
-        }
-        else if (cpos[i] >= getGridSize(i)) {
-          cpos[i] = getGridSize(i) - 1;
-        }
-        else {
-            if (i==0){
-            for (int j=0;j<neiListx.size(); ++j)
-            {
-            if (cpos[i]>(neiListx[j]) && cpos[i]<=(neiListx[j+1])) {
-                cpos[i]=j;
-                }
-            else{
-            }
-            }
-            }
-            else if (i==1) {
-            for (int k=0;k<neiListy.size(); ++k)
-            {
-            if (cpos[i]>(neiListy[k]) && cpos[i]<=(neiListy[k+1])) {
-                cpos[i]=k;
-                }
-            else{
-            }
-            }
-            }
-            else{
-                for (int l=0;l<neiListz.size(); ++l)
-                {
-                if (cpos[i]>(neiListz[l]) && cpos[i]<=(neiListz[l+1])) {
-                    cpos[i]=l;
-                    }
-                else{
-                }
-                }
-        }
-        }
-      }
-      return mapPositionToIndex(cpos);
     }
 
     void NodeGrid::calcNodeNeighbors(longint node)
