@@ -1,4 +1,4 @@
-ESPResSo++
+HeSpaDDA on top of ESPResSo++
 ==========
 
 ESPResSo++ is an extensible, flexible, fast and parallel simulation software for
